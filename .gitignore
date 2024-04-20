@@ -1,0 +1,13 @@
+# Ambiente virtual
+/venv
+/env
+
+# Variáveis de ambiente
+.env
+.venv
+
+# TinyDB
+tinydb.json
+
+# Python cache
+/__pycache__

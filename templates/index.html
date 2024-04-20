@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</head>
+<body class="container py-5 my-2">
+    <header class="d-flex justify-content-center m-4">
+        <h1>Task</h1>
+    </header>
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalCreateTask">
+        <i class="bi bi-plus-lg"></i> Nova Task
+    </button>
+    <main>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">ID</th>
+                    <th scope="col">Título</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Criado em</th>
+                    <th scope="col">Atualizado em</th>
+                    <th scope="col">Ações</th>
+                </tr>
+            </thead>
+             <tbody id="tasks"></tbody>
+        </table>
+    </main>
+
+    <!-- Modal criar task -->
+    <div class="modal fade" id="modalCreateTask" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Nova Task</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCreateTask">
+                    <div class="mb-3">
+                        <label class="form-label" for="titleNewTask">Título</label>
+                        <input class="form-control" type="text" minlength="2" maxlength="20" id="titleNewTask" name="title" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="submit" class="btn btn-primary" form="formCreateTask">Salvar</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal editar task -->
+    <div class="modal fade" id="modalEditTask" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Editar Task</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditTask">
+                    <input type="hidden" id="docIdEditTask" name="doc_id">
+                    <div class="mb-3">
+                        <label class="form-label" for="titleEditTask">Título</label>
+                        <input class="form-control" type="text" minlength="2" maxlength="20" id="titleEditTask" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <select class="form-select" id="statusEditTask" name="status">
+                            {% for op in status %}
+                            <option value="{{ op.name }}">{{ op.name|format_task_status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="submit" class="btn btn-primary" form="formEditTask">Salvar</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal deletar task -->
+    <div class="modal fade" id="modalDeleteTask" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">Deletar Task</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formDeleteTask">
+                    <input type="hidden" id="docIdDeleteTask" name="doc_id">
+                    <p>
+                        Deseja mesmo deletar a task "<span id="titleDeleteTask"></span>"?
+                    </p>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="submit" class="btn btn-danger" form="formDeleteTask">Deletar</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Html carregado
+        document.addEventListener("DOMContentLoaded", async function() {
+            await loadTasks()
+        })
+
+
+        // Objetos
+        const tasks = document.querySelector("#tasks")
+        const modalCreateTask = new bootstrap.Modal('#modalCreateTask', {
+            keyboard: false
+        })
+        const formCreateTask = document.querySelector("#formCreateTask")
+        formCreateTask.addEventListener("submit", createTask)
+        const modalEditTask = new bootstrap.Modal('#modalEditTask', {
+            keyboard: false
+        })
+        const formEditTask = document.querySelector("#formEditTask")
+        formEditTask.addEventListener("submit", editTask)
+        const modalDeleteTask = new bootstrap.Modal('#modalDeleteTask', {
+            keyboard: false
+        })
+        const formDeleteTask = document.querySelector("#formDeleteTask")
+        formDeleteTask.addEventListener("submit", deleteTask)
+
+
+        // Carregar ás tasks
+        async function loadTasks() {
+            const api = "{{ url_for('get_tasks') }}"
+            const response = await fetch(
+                api,
+                {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            )
+            if (response.ok) {
+                tasks.innerHTML = ""
+                const responseJson = await response.json()
+                for (task of responseJson) {
+                    const buttons = `
+                        <div class="btn-group">
+                            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalEditTask" data-bs-doc-id="${task.doc_id}" data-bs-title="${task.title}" data-bs-status="${task.status}"><i class="bi bi-pencil-square"></i> Editar</button>
+                            <button class="btn btn-danger" type="button" data-bs-toggle="modal" data-bs-target="#modalDeleteTask" data-bs-doc-id="${task.doc_id}" data-bs-title="${task.title}"><i class="bi bi-trash"></i> Deletar</button>
+                        </div>
+                    `
+                    tasks.innerHTML += `
+                        <tr>
+                            <th scope="row">${task.doc_id}</th>
+                            <td>${task.title}</td>
+                            <td>${formatTaskStatus(task.status)}</td>
+                            <td>${formatTaskDateTime(task.created_at)}</td>
+                            <td>${formatTaskDateTime(task.updated_at)}</td>
+                            <td>${buttons}</td>
+                        </tr>
+                    `
+                }
+            }
+        }
+
+
+        // Criar task
+        async function createTask(e) {
+            e.preventDefault()
+
+            const formData = new FormData(e.target)
+            const jsonData = {}
+            formData.forEach((value, key) => {
+                jsonData[key] = value
+            })
+
+            const api = "{{ url_for('create_task') }}"
+            const response = await fetch(
+                api,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(jsonData)
+                }
+            )
+            if (response.ok) {
+                await loadTasks()
+                formCreateTask.reset()
+                modalCreateTask.hide()
+            } else {
+                alert("Erro ao criar a task.")
+            }
+        }
+
+
+        // Define os dados ao abrir o modal de editar task
+        const elModalEditTask = document.querySelector("#modalEditTask")
+        elModalEditTask.addEventListener("show.bs.modal", openModalEditTask)
+        function openModalEditTask(e) {
+            const button = e.relatedTarget
+            const docId = button.getAttribute("data-bs-doc-id")
+            const title = button.getAttribute("data-bs-title")
+            const status = button.getAttribute("data-bs-status")
+            elModalEditTask.querySelector("#docIdEditTask").value = docId
+            elModalEditTask.querySelector("#titleEditTask").value = title
+            elModalEditTask.querySelector("#statusEditTask").value = status
+        }
+
+
+        // Editar task
+        async function editTask(e) {
+            e.preventDefault()
+
+            const formData = new FormData(e.target)
+            const docId = formData.get("doc_id")
+            formData.delete("doc_id")
+            const jsonData = {}
+            formData.forEach((value, key) => {
+                jsonData[key] = value
+            })
+
+            const api = "{{ url_for('edit_task', doc_id='$doc_id') }}".replace("$doc_id", docId)
+            const response = await fetch(
+                api,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(jsonData)
+                }
+            )
+            if (response.ok) {
+                await loadTasks()
+                modalEditTask.hide()
+            } else {
+                alert("Erro ao editar a task.")
+            }
+        }
+
+
+        // Define os dados ao abrir o modal de deletar task
+        const elModalDeleteTask = document.querySelector("#modalDeleteTask")
+        elModalDeleteTask.addEventListener("show.bs.modal", openModalDeleteTask)
+        function openModalDeleteTask(e) {
+            const button = e.relatedTarget
+            const docId = button.getAttribute("data-bs-doc-id")
+            const title = button.getAttribute("data-bs-title")
+            elModalDeleteTask.querySelector("#docIdDeleteTask").value = docId
+            elModalDeleteTask.querySelector("#titleDeleteTask").textContent = title
+        }
+
+
+        // Deletar task
+        async function deleteTask(e) {
+            e.preventDefault()
+
+            const formData = new FormData(e.target)
+            const docId = formData.get("doc_id")
+
+            const api = "{{ url_for('delete_task', doc_id='$doc_id') }}".replace("$doc_id", docId)
+            const response = await fetch(
+                api,
+                {
+                    method: "DELETE",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            )
+            if (response.ok) {
+                await loadTasks()
+                modalDeleteTask.hide()
+            } else {
+                alert("Erro ao deletar a task.")
+            }
+        }
+
+
+        // Formatar status da task
+        function formatTaskStatus(status) {
+            if (status == "pending") {
+                return "Pendente"
+            } else {
+                return "Finalizada"
+            }
+        }
+
+
+        // Formatar data e hora da task
+        function formatTaskDateTime(datetimeStr) {
+            const date = new Date(datetimeStr)
+
+            if (isNaN(date.getTime())) {
+                return 'Data inválida!'
+            }
+
+            const day = date.getDate().toString().padStart(2, '0')
+            const month = (date.getMonth() + 1).toString().padStart(2, '0')
+            const year = date.getFullYear()
+
+            const hours = date.getHours().toString().padStart(2, '0')
+            const minutes = date.getMinutes().toString().padStart(2, '0')
+            const seconds = date.getSeconds().toString().padStart(2, '0')
+
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`
+        }
+    </script>
+</body>
+</html>
